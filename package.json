@@ -1,0 +1,44 @@
+{
+  "name": "sand",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test:letter": "bun run scripts/test-letter.ts",
+    "test:letter:burnout": "bun run scripts/test-letter.ts first-letter-burnout",
+    "test:letter:lonely": "bun run scripts/test-letter.ts first-letter-lonely",
+    "test:letter:reply": "bun run scripts/test-letter.ts reply-hard-day",
+    "test:email": "bun run scripts/test-email.ts",
+    "test:pipeline": "bun run scripts/test-pipeline.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
+    "@google/genai": "^1.43.0",
+    "@supabase/supabase-js": "^2.98.0",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "resend": "^6.9.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^25.3.3",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}
