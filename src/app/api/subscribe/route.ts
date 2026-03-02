@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { Resend } from "resend";
+import { logger } from "@/lib/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -56,28 +57,42 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (upsertError) {
-    console.error("upsert error:", upsertError);
+    logger.error("subscribe.upsert_failed", { email, error: upsertError.message });
     return NextResponse.json({ error: "DB 오류" }, { status: 500 });
   }
 
+  logger.info("subscribe.user_saved", { userId: user.id, email: user.email });
+
   // 2. 환영 이메일 발송 (즉시)
   const welcome = WELCOME_EMAIL(user.nickname);
-  await resend.emails.send({
+  const { error: emailError } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     replyTo: process.env.POSTMARK_INBOUND_ADDRESS!,
     to: user.email,
     subject: welcome.subject,
     text: welcome.text,
-  }).catch(console.error);
+  });
+
+  if (emailError) {
+    logger.error("subscribe.welcome_email_failed", { userId: user.id, error: JSON.stringify(emailError) });
+  } else {
+    logger.info("subscribe.welcome_email_sent", { userId: user.id });
+  }
 
   // 3. 첫 AI 편지 예약 (24시간 후)
   const sendAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await supabase.from("scheduled_letters").insert({
+  const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
     user_id: user.id,
     type: "first",
     status: "pending",
     send_at: sendAt.toISOString(),
   });
+
+  if (scheduleError) {
+    logger.error("subscribe.schedule_failed", { userId: user.id, error: scheduleError.message });
+  } else {
+    logger.info("subscribe.first_letter_scheduled", { userId: user.id, sendAt: sendAt.toISOString() });
+  }
 
   return NextResponse.json({ ok: true });
 }

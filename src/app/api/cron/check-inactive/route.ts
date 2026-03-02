@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 interface NudgeRule {
   type: "nudge_3d" | "nudge_7d" | "check_14d";
@@ -35,12 +36,17 @@ export async function GET(req: NextRequest) {
     const cutoff = new Date(Date.now() - rule.daysInactive * 24 * 60 * 60 * 1000).toISOString();
 
     // 조건: 활성 사용자 + 마지막 편지가 N일 이상 전
-    const { data: candidates } = await supabase
+    const { data: candidates, error: queryError } = await supabase
       .from("users")
       .select("id")
       .eq("is_active", true)
       .lte("last_letter_at", cutoff)
       .limit(100);
+
+    if (queryError) {
+      logger.error("cron.inactive.query_failed", { type: rule.type, error: queryError.message });
+      continue;
+    }
 
     if (!candidates?.length) continue;
 
@@ -55,7 +61,6 @@ export async function GET(req: NextRequest) {
       if (count && count > 0) continue;
 
       // 더 높은 단계의 체크인이 이미 있으면 낮은 단계는 건너뛰기
-      // (예: check_14d가 있으면 nudge_7d, nudge_3d 불필요)
       if (rule.type === "nudge_3d") {
         const { count: higherCount } = await supabase
           .from("scheduled_letters")
@@ -82,17 +87,24 @@ export async function GET(req: NextRequest) {
 
       if (pendingCount && pendingCount > 0) continue;
 
-      // 체크인 편지 예약 (다음 Cron 때 send-letters가 발송)
-      await supabase.from("scheduled_letters").insert({
+      // 체크인 편지 예약
+      const { error: insertError } = await supabase.from("scheduled_letters").insert({
         user_id: user.id,
         type: rule.type,
         status: "pending",
         send_at: new Date().toISOString(),
       });
 
+      if (insertError) {
+        logger.error("cron.inactive.insert_failed", { userId: user.id, type: rule.type, error: insertError.message });
+        continue;
+      }
+
+      logger.info("cron.inactive.scheduled", { userId: user.id, type: rule.type });
       totalCreated++;
     }
   }
 
+  logger.info("cron.inactive.completed", { created: totalCreated });
   return NextResponse.json({ created: totalCreated });
 }

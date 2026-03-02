@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
 import { supabase } from "@/lib/supabase";
 import { detectCrisis, sendCrisisEmail } from "@/lib/crisis";
+import { logger } from "@/lib/logger";
 
 // ─── 서명 검증 ─────────────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ export async function POST(req: NextRequest) {
 
   // ⓪-1 서명 검증
   if (!verifyPostmarkSignature(req, rawBody)) {
+    logger.warn("inbound.signature_failed");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -56,6 +58,7 @@ export async function POST(req: NextRequest) {
   try {
     payload = JSON.parse(rawBody);
   } catch {
+    logger.warn("inbound.invalid_json");
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
@@ -68,14 +71,19 @@ export async function POST(req: NextRequest) {
   }
 
   // ⓪-2 사용자 조회
-  const { data: user } = await supabase
+  const { data: user, error: userError } = await supabase
     .from("users")
     .select("*")
     .eq("email", fromEmail)
     .single();
 
+  if (userError && userError.code !== "PGRST116") {
+    logger.error("inbound.user_lookup_failed", { email: fromEmail, error: userError.message });
+  }
+
   // 미등록 또는 비활성 사용자 → 무시
   if (!user || !user.is_active) {
+    logger.info("inbound.ignored", { email: fromEmail, reason: !user ? "not_found" : "inactive" });
     return NextResponse.json({ ok: true });
   }
 
@@ -91,6 +99,7 @@ export async function POST(req: NextRequest) {
     .gte("created_at", todayStart.toISOString());
 
   if ((count ?? 0) > 0) {
+    logger.info("inbound.rate_limited", { userId: user.id });
     return NextResponse.json({ ok: true }); // 오늘 이미 처리됨
   }
 
@@ -102,27 +111,43 @@ export async function POST(req: NextRequest) {
 
   // ② 위기 키워드 감지 (즉시 처리)
   if (detectCrisis(body)) {
-    await sendCrisisEmail(user.email, user.nickname).catch(console.error);
+    logger.warn("inbound.crisis_detected", { userId: user.id });
+    try {
+      await sendCrisisEmail(user.email, user.nickname);
+    } catch (err) {
+      logger.error("inbound.crisis_email_failed", { userId: user.id, error: (err as Error).message });
+    }
   }
 
   // ③ 편지 저장
-  await supabase.from("letters").insert({
+  const { error: insertError } = await supabase.from("letters").insert({
     user_id: user.id,
     sender: "user",
     body,
     message_id: messageId,
   });
 
+  if (insertError) {
+    logger.error("inbound.letter_save_failed", { userId: user.id, error: insertError.message });
+    return NextResponse.json({ error: "DB error" }, { status: 500 });
+  }
+
   // ④ 답장 예약 (12~24시간 후 랜덤)
   const delayHours = 12 + Math.random() * 12;
   const sendAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
 
-  await supabase.from("scheduled_letters").insert({
+  const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
     user_id: user.id,
     type: "reply",
     status: "pending",
     send_at: sendAt.toISOString(),
   });
+
+  if (scheduleError) {
+    logger.error("inbound.schedule_failed", { userId: user.id, error: scheduleError.message });
+  }
+
+  logger.info("inbound.processed", { userId: user.id, messageId });
 
   // ⑤ 즉시 200 반환
   return NextResponse.json({ ok: true });

@@ -6,6 +6,7 @@ import { Resend } from "resend";
 import { GoogleGenAI } from "@google/genai";
 import { supabase, type User } from "./supabase";
 import { buildSystemPrompt, type LetterType } from "./prompts/letter";
+import { logger } from "./logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
@@ -13,12 +14,16 @@ const resend = new Resend(process.env.RESEND_API_KEY!);
 
 async function generateLetter(user: User, isFirstLetter: boolean, letterType?: LetterType): Promise<string> {
   // 최근 편지 5통 로드
-  const { data: recentLetters } = await supabase
+  const { data: recentLetters, error: lettersError } = await supabase
     .from("letters")
     .select("sender, body")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(5);
+
+  if (lettersError) {
+    logger.warn("letter.history_load_failed", { userId: user.id, error: lettersError.message });
+  }
 
   const isNudge = letterType === "nudge_3d" || letterType === "nudge_7d" || letterType === "check_14d";
 
@@ -56,7 +61,13 @@ async function generateLetter(user: User, isFirstLetter: boolean, letterType?: L
     },
   });
 
-  return response.text ?? "";
+  const text = response.text ?? "";
+  if (!text) {
+    throw new Error("AI returned empty response");
+  }
+
+  logger.info("letter.generated", { userId: user.id, letterType, length: text.length });
+  return text;
 }
 
 // ─── 이메일 발송 ────────────────────────────────────────────────────────────────
@@ -109,7 +120,12 @@ async function sendLetter(
     headers,
   });
 
-  if (error) throw new Error(JSON.stringify(error));
+  if (error) {
+    logger.error("letter.send_failed", { userId: user.id, email: user.email, error: JSON.stringify(error) });
+    throw new Error(`Email send failed: ${JSON.stringify(error)}`);
+  }
+
+  logger.info("letter.sent", { userId: user.id, emailId: data?.id, letterType });
   return data?.id ?? "";
 }
 
@@ -117,22 +133,31 @@ async function sendLetter(
 
 export async function processScheduledLetter(scheduledId: string): Promise<void> {
   // 예약 레코드 조회
-  const { data: scheduled } = await supabase
+  const { data: scheduled, error: scheduledError } = await supabase
     .from("scheduled_letters")
     .select("*")
     .eq("id", scheduledId)
     .single();
 
-  if (!scheduled) throw new Error("Scheduled letter not found");
+  if (scheduledError || !scheduled) {
+    logger.error("pipeline.scheduled_not_found", { scheduledId, error: scheduledError?.message });
+    throw new Error(`Scheduled letter not found: ${scheduledId}`);
+  }
 
   // 사용자 조회
-  const { data: user } = await supabase
+  const { data: user, error: userError } = await supabase
     .from("users")
     .select("*")
     .eq("id", scheduled.user_id)
     .single();
 
+  if (userError) {
+    logger.error("pipeline.user_load_failed", { scheduledId, userId: scheduled.user_id, error: userError.message });
+    throw new Error(`User load failed: ${scheduled.user_id}`);
+  }
+
   if (!user || !user.is_active) {
+    logger.info("pipeline.skipped_inactive", { scheduledId, userId: scheduled.user_id });
     await supabase
       .from("scheduled_letters")
       .update({ status: "failed" })
@@ -160,22 +185,36 @@ export async function processScheduledLetter(scheduledId: string): Promise<void>
   const emailId = await sendLetter(user, letterBody, lastAiLetter?.message_id ?? null, isFirstLetter, letterType);
 
   // 편지 저장
-  await supabase.from("letters").insert({
+  const { error: insertError } = await supabase.from("letters").insert({
     user_id: user.id,
     sender: "ai",
     body: letterBody,
     message_id: emailId,
   });
 
+  if (insertError) {
+    logger.error("pipeline.letter_save_failed", { scheduledId, userId: user.id, error: insertError.message });
+  }
+
   // 예약 상태 업데이트
-  await supabase
+  const { error: updateError } = await supabase
     .from("scheduled_letters")
     .update({ status: "sent" })
     .eq("id", scheduledId);
 
+  if (updateError) {
+    logger.error("pipeline.status_update_failed", { scheduledId, error: updateError.message });
+  }
+
   // 마지막 발송 시각 업데이트
-  await supabase
+  const { error: userUpdateError } = await supabase
     .from("users")
     .update({ last_letter_at: new Date().toISOString() })
     .eq("id", user.id);
+
+  if (userUpdateError) {
+    logger.error("pipeline.last_letter_at_failed", { userId: user.id, error: userUpdateError.message });
+  }
+
+  logger.info("pipeline.completed", { scheduledId, userId: user.id, letterType, emailId });
 }

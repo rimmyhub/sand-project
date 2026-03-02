@@ -3,6 +3,7 @@
  */
 
 import { Resend } from "resend";
+import { logger } from "./logger";
 
 const CRISIS_KEYWORDS = [
   "자해", "자살", "죽고싶다", "죽고 싶다", "사라지고싶다", "사라지고 싶다",
@@ -17,7 +18,7 @@ export async function sendCrisisEmail(to: string, nickname: string | null) {
   const resend = new Resend(process.env.RESEND_API_KEY!);
   const name = nickname || "당신";
 
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
     replyTo: process.env.POSTMARK_INBOUND_ADDRESS!,
     to,
@@ -35,4 +36,11 @@ export async function sendCrisisEmail(to: string, nickname: string | null) {
 당신의 이야기를 듣고 싶어요.
 — sand`,
   });
+
+  if (error) {
+    logger.error("crisis.email_failed", { to, error: JSON.stringify(error) });
+    throw new Error(`Crisis email failed: ${to}`);
+  }
+
+  logger.info("crisis.email_sent", { to });
 }

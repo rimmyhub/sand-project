@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { processScheduledLetter } from "@/lib/letter-pipeline";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   // Vercel Cron 인증
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   }
 
   // 발송 대기 중인 편지 조회
-  const { data: pending } = await supabase
+  const { data: pending, error: queryError } = await supabase
     .from("scheduled_letters")
     .select("id")
     .eq("status", "pending")
@@ -25,7 +26,13 @@ export async function GET(req: NextRequest) {
     .lt("retry_count", 3)
     .limit(50);
 
+  if (queryError) {
+    logger.error("cron.send.query_failed", { error: queryError.message });
+    return NextResponse.json({ error: "DB query failed" }, { status: 500 });
+  }
+
   if (!pending?.length) {
+    logger.info("cron.send.no_pending");
     return NextResponse.json({ processed: 0 });
   }
 
@@ -38,13 +45,18 @@ export async function GET(req: NextRequest) {
     .map((r, i) => ({ result: r, id: pending[i].id }))
     .filter(({ result }) => result.status === "rejected");
 
-  for (const { id } of failed) {
+  for (const { id, result } of failed) {
+    const reason = result.status === "rejected" ? (result.reason as Error)?.message : "unknown";
+    logger.error("cron.send.letter_failed", { scheduledId: id, error: reason });
     await supabase.rpc("increment_retry", { letter_id: id });
   }
 
+  const succeeded = results.filter((r) => r.status === "fulfilled").length;
+  logger.info("cron.send.completed", { processed: results.length, succeeded, failed: failed.length });
+
   return NextResponse.json({
     processed: results.length,
-    succeeded: results.filter((r) => r.status === "fulfilled").length,
+    succeeded,
     failed: failed.length,
   });
 }
