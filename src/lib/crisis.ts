@@ -19,6 +19,7 @@ export async function sendCrisisEmail(to: string, nickname: string | null) {
 
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
+    replyTo: process.env.POSTMARK_INBOUND_ADDRESS!,
     to,
     subject: "괜찮아요 — sand",
     text: `${name}에게,

@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
   const welcome = WELCOME_EMAIL(user.nickname);
   await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
+    replyTo: process.env.POSTMARK_INBOUND_ADDRESS!,
     to: user.email,
     subject: welcome.subject,
     text: welcome.text,

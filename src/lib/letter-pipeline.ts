@@ -81,6 +81,7 @@ async function sendLetter(
 
   const { data, error } = await resend.emails.send({
     from: process.env.RESEND_FROM_EMAIL!,
+    replyTo: process.env.POSTMARK_INBOUND_ADDRESS!,
     to: user.email,
     subject,
     html: `
