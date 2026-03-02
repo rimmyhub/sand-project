@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/check-inactive",
+      "schedule": "30 23 * * *"
+    },
+    {
       "path": "/api/cron/send-letters",
       "schedule": "0 0 * * *"
     }

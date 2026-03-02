@@ -12,6 +12,8 @@ export interface OnboardingData {
   preferredTone: "listen_only" | "advice_ok" | "unknown"; // Q3: 선호 톤
 }
 
+export type LetterType = "first" | "reply" | "nudge_3d" | "nudge_7d" | "check_14d";
+
 export interface LetterContext {
   onboarding: OnboardingData;
   emotionSummary?: string; // AI가 매 편지마다 업데이트하는 감정 요약
@@ -20,11 +22,14 @@ export interface LetterContext {
     body: string;
   }>; // 최근 편지 5통 전문
   isFirstLetter: boolean;
+  letterType?: LetterType;
 }
 
 export function buildSystemPrompt(ctx: LetterContext): string {
-  const { onboarding, emotionSummary, recentLetters, isFirstLetter } = ctx;
+  const { onboarding, emotionSummary, recentLetters, isFirstLetter, letterType } = ctx;
   const name = onboarding.nickname || "당신";
+
+  const isNudge = letterType === "nudge_3d" || letterType === "nudge_7d" || letterType === "check_14d";
 
   return `당신은 sand입니다.
 sand는 AI 편지 친구예요. 펜팔처럼 사용자와 편지를 주고받습니다.
@@ -44,7 +49,7 @@ sand는 AI 편지 친구예요. 펜팔처럼 사용자와 편지를 주고받습
 - 무거운 주제 강요 (상대방이 가벼운 이야기를 하고 싶으면 그걸 따라가기)
 
 ## 편지 구조 (4단계)
-${isFirstLetter ? buildFirstLetterStructure(name, onboarding) : buildReplyStructure(name, onboarding.preferredTone)}
+${isNudge ? buildCheckInStructure(name, letterType!) : isFirstLetter ? buildFirstLetterStructure(name, onboarding) : buildReplyStructure(name, onboarding.preferredTone)}
 
 ## 톤 & 스타일
 - 한국어로 씁니다. 존댓말 기본, 친근하되 가볍지 않게.
@@ -92,6 +97,37 @@ function buildRecentLettersSection(
     .map((l) => `[${l.sender === "ai" ? "sand" : "사용자"}]\n${l.body}`)
     .join("\n\n---\n\n");
   return `\n## 최근 편지 히스토리 (최신순)\n${formatted}`;
+}
+
+function buildCheckInStructure(name: string, type: LetterType): string {
+  if (type === "nudge_3d") {
+    return `체크인 편지 (3일 미응답) — 가볍고 부담 없는 안부 편지입니다.
+1. 가볍게 인사 — "잘 지내고 있나 궁금해서요" 느낌 (답장 안 한 것에 대해 절대 언급하지 않기)
+2. sand의 일상적인 이야기 또는 계절/날씨 이야기를 짧게
+3. 부담 없는 질문 1개 — "오늘 뭐 드셨어요?" 같은 아주 쉬운 것
+4. 따뜻한 마무리 — "답장은 언제든 괜찮아요"라는 뉘앙스
+
+⚠️ 핵심: "왜 답장 안 했어요?"라는 느낌이 절대 들면 안 됩니다. 그냥 sand가 먼저 안부를 묻는 것뿐.`;
+  }
+
+  if (type === "nudge_7d") {
+    return `체크인 편지 (7일 미응답) — 보고 싶다는 마음을 담은 편지입니다.
+1. "요즘 어떻게 지내시나 생각이 났어요" — 그리움을 가볍게 표현
+2. ${name}님의 이전 대화에서 언급된 주제가 있다면 자연스럽게 언급
+3. 열린 질문 1개 — 이전보다 약간 더 따뜻한 질문
+4. 따뜻한 마무리 — "언제든 편하게 답장해주세요"
+
+⚠️ 핵심: 죄책감을 주면 안 됩니다. "오랜만이네요"도 금지. 그냥 sand가 먼저 편지를 쓴 것처럼.`;
+  }
+
+  // check_14d
+  return `체크인 편지 (14일 미응답) — 조용히 곁에 있다는 메시지입니다.
+1. "잘 지내고 계신지 궁금해요" — 담백하게
+2. "바쁘거나 쉬고 싶은 거라면 전혀 괜찮아요" — 압박 없음을 명확히
+3. "답장하고 싶을 때 언제든 편지 보내주세요" — 문은 열려있다는 메시지
+4. 따뜻한 마무리
+
+⚠️ 핵심: 이 편지 이후에도 답장이 없으면 더 이상 보내지 않습니다. 마지막 체크인이라는 느낌 없이, 그냥 기다리겠다는 메시지.`;
 }
 
 function preferredToneLabel(tone: OnboardingData["preferredTone"]): string {

@@ -5,13 +5,13 @@
 import { Resend } from "resend";
 import { GoogleGenAI } from "@google/genai";
 import { supabase, type User } from "./supabase";
-import { buildSystemPrompt } from "./prompts/letter";
+import { buildSystemPrompt, type LetterType } from "./prompts/letter";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
 // ─── AI 편지 생성 ──────────────────────────────────────────────────────────────
 
-async function generateLetter(user: User, isFirstLetter: boolean): Promise<string> {
+async function generateLetter(user: User, isFirstLetter: boolean, letterType?: LetterType): Promise<string> {
   // 최근 편지 5통 로드
   const { data: recentLetters } = await supabase
     .from("letters")
@@ -20,8 +20,11 @@ async function generateLetter(user: User, isFirstLetter: boolean): Promise<strin
     .order("created_at", { ascending: false })
     .limit(5);
 
+  const isNudge = letterType === "nudge_3d" || letterType === "nudge_7d" || letterType === "check_14d";
+
   const ctx = {
     isFirstLetter,
+    letterType,
     onboarding: {
       nickname: user.nickname ?? "",
       currentMood: user.current_mood ?? undefined,
@@ -36,10 +39,16 @@ async function generateLetter(user: User, isFirstLetter: boolean): Promise<strin
     }>,
   };
 
+  const contentPrompt = isNudge
+    ? "사용자에게 보내는 체크인 편지를 작성해주세요. 답장을 재촉하지 말고, 자연스럽게 안부를 물어주세요."
+    : isFirstLetter
+      ? "첫 편지를 작성해주세요."
+      : "마지막 사용자 편지에 대한 답장을 작성해주세요.";
+
   const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
   const response = await genai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: isFirstLetter ? "첫 편지를 작성해주세요." : "마지막 사용자 편지에 대한 답장을 작성해주세요.",
+    contents: contentPrompt,
     config: {
       systemInstruction: buildSystemPrompt(ctx),
       maxOutputTokens: 4096,
@@ -56,11 +65,15 @@ async function sendLetter(
   user: User,
   letterBody: string,
   inReplyTo: string | null,
-  isFirstLetter: boolean
+  isFirstLetter: boolean,
+  letterType?: LetterType
 ): Promise<string> {
+  const isNudge = letterType === "nudge_3d" || letterType === "nudge_7d" || letterType === "check_14d";
   const subject = isFirstLetter
     ? "안녕하세요 — 저는 sand예요"
-    : "sand로부터 답장이 도착했어요";
+    : isNudge
+      ? "잘 지내고 있나요 — sand"
+      : "sand로부터 답장이 도착했어요";
 
   const htmlBody = letterBody
     .split("\n")
@@ -128,6 +141,7 @@ export async function processScheduledLetter(scheduledId: string): Promise<void>
   }
 
   const isFirstLetter = scheduled.type === "first";
+  const letterType = scheduled.type as LetterType;
 
   // 마지막 AI 편지의 message_id (스레딩용)
   const { data: lastAiLetter } = await supabase
@@ -140,10 +154,10 @@ export async function processScheduledLetter(scheduledId: string): Promise<void>
     .single();
 
   // AI 편지 생성
-  const letterBody = await generateLetter(user, isFirstLetter);
+  const letterBody = await generateLetter(user, isFirstLetter, letterType);
 
   // 이메일 발송
-  const emailId = await sendLetter(user, letterBody, lastAiLetter?.message_id ?? null, isFirstLetter);
+  const emailId = await sendLetter(user, letterBody, lastAiLetter?.message_id ?? null, isFirstLetter, letterType);
 
   // 편지 저장
   await supabase.from("letters").insert({
