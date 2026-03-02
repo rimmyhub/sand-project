@@ -79,6 +79,13 @@ export default function LandingPage() {
           </p>
         </section>
 
+        {/* 약관 링크 */}
+        <footer className="flex justify-center gap-4 text-xs text-stone-400">
+          <a href="/terms" className="hover:text-stone-600 transition-colors">이용약관</a>
+          <span>·</span>
+          <a href="/privacy" className="hover:text-stone-600 transition-colors">개인정보처리방침</a>
+        </footer>
+
       </main>
     </div>
   );
