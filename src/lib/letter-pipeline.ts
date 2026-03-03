@@ -10,6 +10,16 @@ import { logger } from "./logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
+/** HTML 특수문자 이스케이핑 (XSS 방지) */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ─── AI 편지 생성 ──────────────────────────────────────────────────────────────
 
 async function generateLetter(user: User, isFirstLetter: boolean, letterType?: LetterType): Promise<string> {
@@ -88,7 +98,7 @@ async function sendLetter(
 
   const htmlBody = letterBody
     .split("\n")
-    .map((line) => (line === "" ? "<br>" : `<p style="margin:0 0 8px">${line}</p>`))
+    .map((line) => (line === "" ? "<br>" : `<p style="margin:0 0 8px">${escapeHtml(line)}</p>`))
     .join("");
 
   const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://sand.so"}/unsubscribe?token=${user.unsubscribe_token}`;

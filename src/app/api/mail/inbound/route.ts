@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { supabase } from "@/lib/supabase";
 import { detectCrisis, sendCrisisEmail } from "@/lib/crisis";
 import { logger } from "@/lib/logger";
@@ -21,7 +21,10 @@ import { logger } from "@/lib/logger";
 
 function verifyPostmarkSignature(req: NextRequest, rawBody: string): boolean {
   const secret = process.env.POSTMARK_WEBHOOK_SECRET;
-  if (!secret) return true; // 개발 환경에서는 검증 생략
+  if (!secret) {
+    logger.warn("inbound.no_webhook_secret", { message: "POSTMARK_WEBHOOK_SECRET not set — rejecting request" });
+    return false; // 비밀키 없으면 무조건 차단
+  }
 
   const signature = req.headers.get("x-postmark-signature");
   if (!signature) return false;
@@ -30,7 +33,9 @@ function verifyPostmarkSignature(req: NextRequest, rawBody: string): boolean {
     .update(rawBody)
     .digest("base64");
 
-  return signature === expected;
+  // 타이밍 공격 방지를 위한 안전한 비교
+  if (signature.length !== expected.length) return false;
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
 // ─── 인용구 제거 ───────────────────────────────────────────────────────────────
@@ -101,6 +106,19 @@ export async function POST(req: NextRequest) {
   if ((count ?? 0) > 0) {
     logger.info("inbound.rate_limited", { userId: user.id });
     return NextResponse.json({ ok: true }); // 오늘 이미 처리됨
+  }
+
+  // ⓪-4 중복 수신 방지 (Postmark 재시도 대응)
+  if (messageId) {
+    const { count: dupCount } = await supabase
+      .from("letters")
+      .select("id", { count: "exact", head: true })
+      .eq("message_id", messageId);
+
+    if ((dupCount ?? 0) > 0) {
+      logger.info("inbound.duplicate_ignored", { userId: user.id, messageId });
+      return NextResponse.json({ ok: true });
+    }
   }
 
   // ① 인용구 제거

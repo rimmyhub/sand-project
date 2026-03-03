@@ -41,7 +41,9 @@ function OnboardingForm() {
     if (res.ok) {
       router.push("/welcome");
     } else {
-      alert("오류가 발생했어요. 다시 시도해주세요.");
+      const data = await res.json().catch(() => null);
+      const msg = data?.error || "오류가 발생했어요. 다시 시도해주세요.";
+      alert(msg);
       setLoading(false);
     }
   }

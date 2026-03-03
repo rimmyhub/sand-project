@@ -38,6 +38,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 항목 누락" }, { status: 400 });
   }
 
+  // 이메일 형식 검증
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return NextResponse.json({ error: "올바른 이메일 형식이 아닙니다" }, { status: 400 });
+  }
+
   // 1. 유저 저장 (이미 있으면 업데이트)
   const { data: user, error: upsertError } = await supabase
     .from("users")
@@ -75,11 +81,22 @@ export async function POST(req: NextRequest) {
 
   if (emailError) {
     logger.error("subscribe.welcome_email_failed", { userId: user.id, error: JSON.stringify(emailError) });
-  } else {
-    logger.info("subscribe.welcome_email_sent", { userId: user.id });
+    return NextResponse.json({ error: "이메일 발송에 실패했습니다. 이메일 주소를 확인해주세요." }, { status: 500 });
+  }
+  logger.info("subscribe.welcome_email_sent", { userId: user.id });
+
+  // 3. 첫 AI 편지 예약 (24시간 후) — 중복 예약 방지
+  const { count: existingFirst } = await supabase
+    .from("scheduled_letters")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("type", "first");
+
+  if ((existingFirst ?? 0) > 0) {
+    logger.info("subscribe.first_letter_already_scheduled", { userId: user.id });
+    return NextResponse.json({ ok: true });
   }
 
-  // 3. 첫 AI 편지 예약 (24시간 후)
   const sendAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
     user_id: user.id,
