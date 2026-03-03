@@ -12,30 +12,27 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createHmac, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import { supabase } from "@/lib/supabase";
 import { detectCrisis, sendCrisisEmail } from "@/lib/crisis";
 import { logger } from "@/lib/logger";
 
 // ─── 서명 검증 ─────────────────────────────────────────────────────────────────
 
-function verifyPostmarkSignature(req: NextRequest, rawBody: string): boolean {
+function verifyPostmarkSignature(req: NextRequest): boolean {
   const secret = process.env.POSTMARK_WEBHOOK_SECRET;
   if (!secret) {
     logger.warn("inbound.no_webhook_secret", { message: "POSTMARK_WEBHOOK_SECRET not set — rejecting request" });
-    return false; // 비밀키 없으면 무조건 차단
+    return false;
   }
 
-  const signature = req.headers.get("x-postmark-signature");
-  if (!signature) return false;
-
-  const expected = createHmac("sha256", secret)
-    .update(rawBody)
-    .digest("base64");
+  // Postmark 인바운드는 HMAC 서명 미지원 → URL 쿼리 파라미터로 검증
+  const token = req.nextUrl.searchParams.get("secret");
+  if (!token) return false;
 
   // 타이밍 공격 방지를 위한 안전한 비교
-  if (signature.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  if (token.length !== secret.length) return false;
+  return timingSafeEqual(Buffer.from(token), Buffer.from(secret));
 }
 
 // ─── 인용구 제거 ───────────────────────────────────────────────────────────────
@@ -54,7 +51,7 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
 
   // ⓪-1 서명 검증
-  if (!verifyPostmarkSignature(req, rawBody)) {
+  if (!verifyPostmarkSignature(req)) {
     logger.warn("inbound.signature_failed");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
