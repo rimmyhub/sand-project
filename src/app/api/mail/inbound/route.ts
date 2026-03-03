@@ -147,8 +147,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
-  // ④ 답장 예약 (12~24시간 후 랜덤)
-  const delayHours = 12 + Math.random() * 12;
+  // ④ 답장 예약 (44~52시간 후 랜덤 — 약 2일 간격)
+  const delayHours = 44 + Math.random() * 8;
   const sendAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
 
   const { error: scheduleError } = await supabase.from("scheduled_letters").insert({

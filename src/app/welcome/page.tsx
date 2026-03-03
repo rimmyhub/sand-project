@@ -11,32 +11,12 @@ export default function WelcomePage() {
             className="text-2xl leading-snug text-stone-800"
             style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}
           >
-            sand가 곧 첫 편지를 쓸 거예요.<br />
-            지금쯤 종이를 꺼내고 있을 거예요.
+            지금 sand가 편지를 쓰고 있어요.<br />
+            잠시 후 이메일로 도착할 거예요.
           </h1>
           <p className="text-stone-500 leading-relaxed text-sm">
-            빨리 답할 필요 없어요. sand는 기다리는 데 익숙해요.
+            답장하면 또 와요. 짧아도 괜찮아요.
           </p>
-        </div>
-
-        <div
-          className="bg-white border border-stone-100 rounded-2xl p-7 shadow-sm text-left"
-          style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}
-        >
-          <p className="text-xs text-stone-400 mb-4">방금 환영 이메일을 보냈어요</p>
-          <pre className="text-stone-600 text-sm leading-7 whitespace-pre-wrap">
-{`잠깐, 편지 오기 전에 — sand
-
-곧 첫 편지를 쓸게요.
-
-저는 상담사가 아니에요.
-그냥 — 당신 이야기를 듣고 싶은 존재예요.
-
-짧게 답장해도 괜찮아요.
-기다리고 있을게요.
-
-— sand`}
-          </pre>
         </div>
 
         <Link

@@ -1,11 +1,11 @@
 /**
- * Cron: 장기 미응답 사용자 체크인 편지 예약
+ * Cron: 미응답 사용자 체크인 편지 예약
  * GET /api/cron/check-inactive
  *
  * 매일 실행 — 마지막 AI 편지 이후 답장이 없는 사용자에게 체크인 편지를 예약
- *   3일 미응답 → nudge_3d
- *   7일 미응답 → nudge_7d
- *  14일 미응답 → check_14d (이후 더 이상 보내지 않음)
+ *    2일 미응답 → nudge_3d
+ *    5일 미응답 → nudge_7d
+ *   10일 미응답 → check_14d (이후 더 이상 보내지 않음)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -18,9 +18,9 @@ interface NudgeRule {
 }
 
 const NUDGE_RULES: NudgeRule[] = [
-  { type: "check_14d", daysInactive: 14 },
-  { type: "nudge_7d", daysInactive: 7 },
-  { type: "nudge_3d", daysInactive: 3 },
+  { type: "check_14d", daysInactive: 10 },
+  { type: "nudge_7d", daysInactive: 5 },
+  { type: "nudge_3d", daysInactive: 2 },
 ];
 
 export async function GET(req: NextRequest) {
