@@ -96,7 +96,8 @@ async function sendLetter(
       ? "잘 지내고 있나요 — sand"
       : "sand로부터 답장이 도착했어요";
 
-  const htmlBody = letterBody
+  const cleanedBody = letterBody.replace(/[-—–]\s*sand\s*$/i, "").trimEnd();
+  const htmlBody = cleanedBody
     .split("\n")
     .map((line) => (line === "" ? "<br>" : `<p style="margin:0 0 8px">${escapeHtml(line)}</p>`))
     .join("");
@@ -121,6 +122,7 @@ async function sendLetter(
     html: `
       <div style="max-width:520px;margin:0 auto;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#333;padding:40px 24px">
         ${htmlBody}
+        <img src="${process.env.NEXT_PUBLIC_BASE_URL ?? "https://fromsand.shop"}/sand-logo.png" alt="sand" style="height:24px;margin-top:24px;margin-left:-4px;display:block">
         <p style="margin-top:32px;font-size:12px;color:#999">
           <a href="${unsubscribeUrl}" style="color:#999">구독 해지</a>
         </p>
