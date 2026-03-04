@@ -22,6 +22,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "올바른 이메일 형식이 아닙니다" }, { status: 400 });
   }
 
+  // 기존 유저 조회 (토큰 보존용)
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("unsubscribe_token")
+    .eq("email", email.toLowerCase().trim())
+    .single();
+
+  const unsubscribeToken = existingUser?.unsubscribe_token ?? crypto.randomUUID();
+
   // 1. 유저 저장 (이미 있으면 업데이트)
   const { data: user, error: upsertError } = await supabase
     .from("users")
@@ -34,6 +43,7 @@ export async function POST(req: NextRequest) {
         topics,
         preferred_tone: preferredTone,
         is_active: true,
+        unsubscribe_token: unsubscribeToken,
       },
       { onConflict: "email" }
     )
