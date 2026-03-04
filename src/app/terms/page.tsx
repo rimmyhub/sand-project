@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-[#faf9f7] flex flex-col items-center px-6 py-20">
       <main className="w-full max-w-2xl">
 
-        <p className="text-sm tracking-widest text-stone-400 uppercase mb-6">sand</p>
+        <Image src="/sand-logo.png" alt="sand" width={90} height={45} className="mb-6" style={{ marginLeft: '-6px' }} />
 
         <h1
           className="text-2xl text-stone-800 mb-10"

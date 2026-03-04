@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function WelcomePage() {
   return (
@@ -6,7 +7,7 @@ export default function WelcomePage() {
       <main className="w-full max-w-lg flex flex-col gap-8 text-center">
 
         <div className="flex flex-col gap-4">
-          <p className="text-sm tracking-widest text-stone-400 uppercase">sand</p>
+          <Image src="/sand-logo.png" alt="sand" width={90} height={45} style={{ margin: '0 auto' }} />
           <h1
             className="text-2xl leading-snug text-stone-800"
             style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}

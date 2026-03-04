@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 const SAMPLE_LETTER = `지은님,
 
@@ -30,12 +31,12 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] flex flex-col items-center justify-center px-6 py-20">
+    <div className="min-h-screen bg-[#faf9f7] flex flex-col items-center justify-center px-6 py-32">
       <main className="w-full max-w-lg flex flex-col gap-16">
 
         {/* 헤더 */}
         <header className="flex flex-col gap-4">
-          <img src="/sand-logo.png" alt="sand" className="h-8" style={{ marginLeft: "-3px" }} />
+          <Image src="/sand-logo.png" alt="sand" width={90} height={45} style={{ marginLeft: '-6px' }} />
           <h1 className="text-3xl leading-snug text-stone-800" style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}>
             하루 한 통,<br />
             당신의 이야기를<br />
