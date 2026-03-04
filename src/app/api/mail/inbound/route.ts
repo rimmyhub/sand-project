@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ② 위기 키워드 감지 (즉시 처리)
+  // ② 위기 키워드 감지 (즉시 처리 후 종료 — 루프 방지)
   if (detectCrisis(body)) {
     logger.warn("inbound.crisis_detected", { userId: user.id });
     try {
@@ -132,6 +132,7 @@ export async function POST(req: NextRequest) {
     } catch (err) {
       logger.error("inbound.crisis_email_failed", { userId: user.id, error: (err as Error).message });
     }
+    return NextResponse.json({ ok: true });
   }
 
   // ③ 편지 저장
