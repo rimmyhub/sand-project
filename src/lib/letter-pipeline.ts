@@ -121,7 +121,7 @@ async function sendLetter(
     subject,
     html: `
       <div style="max-width:520px;margin:0 auto;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#333;padding:40px 24px">
-        <img src="${process.env.NEXT_PUBLIC_BASE_URL ?? "https://fromsand.shop"}/sand-logo.png" alt="sand" width="90" height="45" style="margin-bottom:32px;margin-left:-8px;display:block">
+        <img src="${process.env.NEXT_PUBLIC_BASE_URL ?? "https://fromsand.shop"}/sand-logo.png" alt="sand" width="90" height="45" style="margin-bottom:32px;display:block">
         ${htmlBody}
         <p style="margin-top:32px;font-size:12px;color:#ccc;text-align:right">
           <a href="${unsubscribeUrl}" style="color:#ccc">구독 해지</a>
