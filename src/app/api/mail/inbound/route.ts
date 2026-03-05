@@ -3,12 +3,13 @@
  * POST /api/mail/inbound
  *
  * 처리 순서:
- *   ⓪ 서명 검증 → 사용자 조회 → Rate Limit
+ *   ⓪ 서명 검증 → 사용자 조회
  *   ① 인용구 제거
- *   ② 위기 키워드 감지 (즉시 발송)
- *   ③ 편지 DB 저장
- *   ④ 답장 예약 (scheduled_letters)
- *   ⑤ 200 반환
+ *   ② 위기 키워드 감지 (즉시 발송 후 종료 — Rate Limit 이전 처리)
+ *   ③ Rate Limit → 중복 수신 방지
+ *   ④ 편지 DB 저장
+ *   ⑤ 답장 예약 (scheduled_letters)
+ *   ⑥ 200 반환
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -89,7 +90,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ⓪-3 Rate Limit: 오늘 이미 처리된 편지가 있으면 무시
+  // ① 인용구 제거
+  const body = stripQuotes(rawText);
+  if (!body) {
+    return NextResponse.json({ ok: true });
+  }
+
+  // ② 위기 키워드 감지 (Rate Limit 이전 — 항상 처리, 즉시 종료)
+  if (detectCrisis(body)) {
+    logger.warn("inbound.crisis_detected", { userId: user.id });
+    try {
+      await sendCrisisEmail(user.email, user.nickname);
+    } catch (err) {
+      logger.error("inbound.crisis_email_failed", { userId: user.id, error: (err as Error).message });
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // ③ Rate Limit: 오늘 이미 처리된 편지가 있으면 무시
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -105,7 +123,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true }); // 오늘 이미 처리됨
   }
 
-  // ⓪-4 중복 수신 방지 (Postmark 재시도 대응)
+  // ③-1 중복 수신 방지 (Postmark 재시도 대응)
   if (messageId) {
     const { count: dupCount } = await supabase
       .from("letters")
@@ -118,24 +136,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ① 인용구 제거
-  const body = stripQuotes(rawText);
-  if (!body) {
-    return NextResponse.json({ ok: true });
-  }
-
-  // ② 위기 키워드 감지 (즉시 처리 후 종료 — 루프 방지)
-  if (detectCrisis(body)) {
-    logger.warn("inbound.crisis_detected", { userId: user.id });
-    try {
-      await sendCrisisEmail(user.email, user.nickname);
-    } catch (err) {
-      logger.error("inbound.crisis_email_failed", { userId: user.id, error: (err as Error).message });
-    }
-    return NextResponse.json({ ok: true });
-  }
-
-  // ③ 편지 저장
+  // ④ 편지 저장
   const { error: insertError } = await supabase.from("letters").insert({
     user_id: user.id,
     sender: "user",
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
-  // ④ 답장 예약 (44~52시간 후 랜덤 — 약 2일 간격)
+  // ⑤ 답장 예약 (44~52시간 후 랜덤 — 약 2일 간격)
   const delayHours = 44 + Math.random() * 8;
   const sendAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
 
@@ -165,6 +166,6 @@ export async function POST(req: NextRequest) {
 
   logger.info("inbound.processed", { userId: user.id, messageId });
 
-  // ⑤ 즉시 200 반환
+  // ⑥ 즉시 200 반환
   return NextResponse.json({ ok: true });
 }
