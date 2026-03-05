@@ -87,7 +87,8 @@ async function sendLetter(
   letterBody: string,
   inReplyTo: string | null,
   isFirstLetter: boolean,
-  letterType?: LetterType
+  letterType?: LetterType,
+  aiLetterCount?: number
 ): Promise<string> {
   const isNudge = letterType === "nudge_3d" || letterType === "nudge_7d" || letterType === "check_14d";
   const subject = isFirstLetter
@@ -103,6 +104,9 @@ async function sendLetter(
     .join("");
 
   const unsubscribeUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? "https://sand.so"}/unsubscribe?token=${user.unsubscribe_token}`;
+  const surveyHtml = (aiLetterCount ?? 0) >= 3 && process.env.SURVEY_URL
+    ? `<a href="${process.env.SURVEY_URL}" style="color:#a8a29e;text-decoration:underline">sand, 어떠셨나요? →</a>`
+    : "";
 
   const headers: Record<string, string> = {
     "List-Unsubscribe": `<${unsubscribeUrl}>`,
@@ -123,7 +127,8 @@ async function sendLetter(
       <div style="max-width:520px;margin:0 auto;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#333;padding:40px 24px">
         <img src="${process.env.NEXT_PUBLIC_BASE_URL ?? "https://fromsand.shop"}/sand-logo.png" alt="sand" width="82" height="31" style="margin-bottom:32px;display:block">
         ${htmlBody}
-        <p style="margin-top:32px;font-size:12px;color:#ccc;text-align:right">
+        <p style="margin-top:32px;font-size:12px;color:#ccc;display:flex;justify-content:space-between;align-items:center">
+          <span>${surveyHtml}</span>
           <a href="${unsubscribeUrl}" style="color:#ccc">구독 해지</a>
         </p>
       </div>
@@ -180,7 +185,7 @@ export async function processScheduledLetter(scheduledId: string): Promise<void>
   const isFirstLetter = scheduled.type === "first";
   const letterType = scheduled.type as LetterType;
 
-  // 마지막 AI 편지의 message_id (스레딩용)
+  // 마지막 AI 편지의 message_id (스레딩용) + AI 편지 수 조회
   const { data: lastAiLetter } = await supabase
     .from("letters")
     .select("message_id")
@@ -190,11 +195,17 @@ export async function processScheduledLetter(scheduledId: string): Promise<void>
     .limit(1)
     .single();
 
+  const { count: aiLetterCount } = await supabase
+    .from("letters")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("sender", "ai");
+
   // AI 편지 생성
   const letterBody = await generateLetter(user, isFirstLetter, letterType);
 
   // 이메일 발송
-  const emailId = await sendLetter(user, letterBody, lastAiLetter?.message_id ?? null, isFirstLetter, letterType);
+  const emailId = await sendLetter(user, letterBody, lastAiLetter?.message_id ?? null, isFirstLetter, letterType, aiLetterCount ?? 0);
 
   // 편지 저장
   const { error: insertError } = await supabase.from("letters").insert({
