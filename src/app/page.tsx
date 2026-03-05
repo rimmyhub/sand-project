@@ -36,7 +36,7 @@ export default function LandingPage() {
 
         {/* 헤더 */}
         <header className="flex flex-col gap-4">
-          <Image src="/sand-logo.png" alt="sand" width={90} height={45} style={{ marginLeft: '-8px' }} />
+          <Image src="/sand-logo.png" alt="sand" width={90} height={34} />
           <h1 className="text-3xl leading-snug text-stone-800" style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}>
             하루 한 통,<br />
             당신의 이야기를<br />
