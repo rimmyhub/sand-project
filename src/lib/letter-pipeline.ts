@@ -127,10 +127,12 @@ async function sendLetter(
       <div style="max-width:520px;margin:0 auto;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#333;padding:40px 24px">
         <img src="${process.env.NEXT_PUBLIC_BASE_URL ?? "https://fromsand.shop"}/sand-logo.png" alt="sand" width="82" height="31" style="margin-bottom:32px;display:block">
         ${htmlBody}
-        <p style="margin-top:32px;font-size:12px;color:#ccc;display:flex;justify-content:space-between;align-items:center">
-          <span>${surveyHtml}</span>
-          <a href="${unsubscribeUrl}" style="color:#ccc">구독 해지</a>
-        </p>
+        <table style="margin-top:32px;width:100%;font-size:12px;color:#ccc" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="text-align:left">${surveyHtml}</td>
+            <td style="text-align:right"><a href="${unsubscribeUrl}" style="color:#ccc">구독 해지</a></td>
+          </tr>
+        </table>
       </div>
     `,
     text: letterBody,
