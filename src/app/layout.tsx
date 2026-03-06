@@ -10,10 +10,10 @@ const notoSerifKR = Noto_Serif_KR({
 
 export const metadata: Metadata = {
   title: "sand — 당신의 안부가 궁금한 AI 편지 친구",
-  description: "하루 한 통, 당신의 이야기를 듣고 싶은 AI 편지 친구예요.",
+  description: "하루 한 통, 당신의 하루를 묻는 편지가 도착합니다.",
   openGraph: {
     title: "sand — 당신의 안부가 궁금한 AI 편지 친구",
-    description: "하루 한 통, 당신의 이야기를 듣고 싶은 AI 편지 친구예요.",
+    description: "하루 한 통, 당신의 하루를 묻는 편지가 도착합니다.",
     url: "https://fromsand.shop",
     siteName: "sand",
     images: [
