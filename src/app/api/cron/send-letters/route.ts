@@ -2,7 +2,7 @@
  * Cron: 예약된 편지 발송
  * GET /api/cron/send-letters
  *
- * Vercel Hobby: 매일 오전 9시 실행
+ * Vercel Hobby: 매일 저녁 9시(KST) 실행
  */
 
 import { NextRequest, NextResponse } from "next/server";

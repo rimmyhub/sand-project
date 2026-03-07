@@ -54,3 +54,8 @@ next-env.d.ts
 .env.local
 .env*.local
 .env
+
+
+# 사업계획서
+사업계획서_초안.md
+예비창업패키지.md

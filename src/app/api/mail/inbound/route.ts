@@ -149,9 +149,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
-  // ⑤ 답장 예약 (20~28시간 후 랜덤 — 약 1일 간격)
-  const delayHours = 20 + Math.random() * 8;
-  const sendAt = new Date(Date.now() + delayHours * 60 * 60 * 1000);
+  // ⑤ 답장 예약 — 다음 날 저녁 9시(KST = UTC+9) 발송
+  const sendAt = new Date();
+  sendAt.setUTCHours(12, 0, 0, 0); // UTC 12:00 = KST 21:00
+  if (sendAt.getTime() <= Date.now()) {
+    sendAt.setUTCDate(sendAt.getUTCDate() + 1); // 이미 지났으면 다음 날
+  }
 
   const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
     user_id: user.id,
