@@ -44,7 +44,7 @@ export default function TermsPage() {
             <ul className="list-disc pl-5 space-y-1">
               <li>만 14세 이상의 사용자만 이용할 수 있습니다.</li>
               <li>하루 1회 답장 제한이 있습니다.</li>
-              <li>AI 편지는 12~24시간 후 발송됩니다.</li>
+              <li>AI 편지는 매일 저녁 9시(KST)에 발송됩니다. 첫 편지는 가입 직후 발송됩니다.</li>
               <li>서비스는 무료 베타로 운영되며, 사전 고지 후 변경될 수 있습니다.</li>
             </ul>
           </section>

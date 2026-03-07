@@ -89,8 +89,9 @@ export default function LandingPage() {
             <div>
               <p className="text-sm font-medium text-stone-700 mb-2">편지는 언제 오나요?</p>
               <p className="text-sm text-stone-500 leading-relaxed">
-                매일 저녁 9시에 편지가 도착해요. 하루를 마무리하며 읽기 좋은 시간이에요.
-                답장을 보내시면 다음 날 저녁에 다시 편지가 와요.
+                첫 편지는 가입 직후에 바로 도착해요.
+                답장을 보내시면 다음 날 저녁 9시에 다시 편지가 와요.
+                하루를 마무리하며 읽기 좋은 시간이에요.
               </p>
             </div>
             <div>
