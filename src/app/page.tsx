@@ -80,6 +80,45 @@ export default function LandingPage() {
           </p>
         </section>
 
+        {/* 자주 묻는 질문 */}
+        <section className="flex flex-col gap-6">
+          <h2 className="text-lg text-stone-800" style={{ fontFamily: "var(--font-noto-serif-kr), Georgia, serif" }}>
+            자주 묻는 질문
+          </h2>
+          <div className="flex flex-col gap-7">
+            <div>
+              <p className="text-sm font-medium text-stone-700 mb-2">편지는 언제 오나요?</p>
+              <p className="text-sm text-stone-500 leading-relaxed">
+                매일 저녁 9시에 편지가 도착해요. 하루를 마무리하며 읽기 좋은 시간이에요.
+                답장을 보내시면 다음 날 저녁에 다시 편지가 와요.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-stone-700 mb-2">AI가 저를 기억하나요?</p>
+              <p className="text-sm text-stone-500 leading-relaxed">
+                네, sand는 여러분 각자만의 친구예요. 처음 알려주신 감정과 이야기,
+                그리고 주고받은 편지 내용을 기억하고 있어요. 대화가 쌓일수록
+                더 깊이 이해하는 친구가 됩니다.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-stone-700 mb-2">개인정보는 안전한가요?</p>
+              <p className="text-sm text-stone-500 leading-relaxed">
+                편지 내용과 개인정보는 비식별화하여 안전하게 관리하고 있어요.
+                다른 누구도 여러분의 편지를 볼 수 없습니다.
+                언제든 구독을 해지하면 데이터도 함께 삭제돼요.
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-stone-700 mb-2">구독 해지는 어떻게 하나요?</p>
+              <p className="text-sm text-stone-500 leading-relaxed">
+                매번 받는 편지 하단에 &lsquo;구독 해지&rsquo; 버튼이 있어요.
+                클릭 한 번이면 바로 해지되고, 더 이상 편지가 오지 않아요.
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* 약관 링크 */}
         <footer className="flex justify-center gap-4 text-xs text-stone-400">
           <a href="/terms" className="hover:text-stone-600 transition-colors">이용약관</a>

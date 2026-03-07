@@ -149,22 +149,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "DB error" }, { status: 500 });
   }
 
-  // ⑤ 답장 예약 — 다음 날 저녁 9시(KST = UTC+9) 발송
-  const sendAt = new Date();
-  sendAt.setUTCHours(12, 0, 0, 0); // UTC 12:00 = KST 21:00
-  if (sendAt.getTime() <= Date.now()) {
-    sendAt.setUTCDate(sendAt.getUTCDate() + 1); // 이미 지났으면 다음 날
-  }
+  // ⑤ 답장 예약 — 이미 pending인 답장이 있으면 중복 예약 방지
+  const { count: pendingReply } = await supabase
+    .from("scheduled_letters")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "pending");
 
-  const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
-    user_id: user.id,
-    type: "reply",
-    status: "pending",
-    send_at: sendAt.toISOString(),
-  });
+  if (pendingReply && pendingReply > 0) {
+    logger.info("inbound.reply_already_pending", { userId: user.id });
+  } else {
+    const sendAt = new Date();
+    sendAt.setUTCHours(12, 0, 0, 0); // UTC 12:00 = KST 21:00
+    if (sendAt.getTime() <= Date.now()) {
+      sendAt.setUTCDate(sendAt.getUTCDate() + 1);
+    }
 
-  if (scheduleError) {
-    logger.error("inbound.schedule_failed", { userId: user.id, error: scheduleError.message });
+    const { error: scheduleError } = await supabase.from("scheduled_letters").insert({
+      user_id: user.id,
+      type: "reply",
+      status: "pending",
+      send_at: sendAt.toISOString(),
+    });
+
+    if (scheduleError) {
+      logger.error("inbound.schedule_failed", { userId: user.id, error: scheduleError.message });
+    }
   }
 
   logger.info("inbound.processed", { userId: user.id, messageId });
