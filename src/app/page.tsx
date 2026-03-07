@@ -122,6 +122,8 @@ export default function LandingPage() {
 
         {/* 약관 링크 */}
         <footer className="flex justify-center gap-4 text-xs text-stone-400">
+          <button onClick={() => alert("문의: gpfla5503@gmail.com")} className="hover:text-stone-600 transition-colors">문의하기</button>
+          <span>·</span>
           <a href="/terms" className="hover:text-stone-600 transition-colors">이용약관</a>
           <span>·</span>
           <a href="/privacy" className="hover:text-stone-600 transition-colors">개인정보처리방침</a>
